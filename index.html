@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pure P2P Chat Engine</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; margin: 0; display: flex; height: 100vh; }
+        #sidebar { width: 300px; background: #1a1a1a; border-right: 1px solid #333; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
+        #chat-area { flex: 1; display: flex; flex-direction: column; background: #151515; }
+        #chat-header { padding: 25px; background: #1a1a1a; border-bottom: 1px solid #333; font-weight: bold; font-size: 1.1em; }
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 60%; padding: 10px 15px; border-radius: 15px; line-height: 1.4; }
+        .msg.sent { background: #007bff; align-self: flex-end; }
+        .msg.received { background: #333; align-self: flex-start; }
+        .msg.system { background: transparent; color: #888; align-self: center; font-size: 0.9em; }
+        #input-area { padding: 15px; background: #1a1a1a; display: flex; gap: 10px; }
+        input, select { padding: 12px; background: #252525; border: 1px solid #444; color: #fff; border-radius: 5px; }
+        input { flex: 1; }
+        button { padding: 12px 20px; background: #007bff; border: none; color: #fff; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        .box { background: #222; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #333; }
+        .id-text { font-family: monospace; color: #00ff88; font-weight: bold; background: #111; padding: 5px; border-radius: 3px; display: inline-block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>P2P Chat Node</h2>
+        
+        <div class="box">
+            <div>Your Connection ID:</div>
+            <div id="my-id" class="id-text">Connecting...</div>
+        </div>
+
+        <div class="box">
+            <div>Connect to a Friend:</div>
+            <input type="text" id="peer-id-input" placeholder="Paste friend's ID here" style="width: 100%; margin: 10px 0; box-sizing: border-box;">
+            <button id="connect-btn" style="width: 100%;">Connect Device</button>
+        </div>
+        
+        <div id="status" style="color: #aaa; font-size: 0.9em; text-align: center;"></div>
+    </div>
+
+    <div id="chat-area">
+        <div id="chat-header">Not Connected to Anyone</div>
+        <div id="messages"></div>
+        <div id="input-area">
+            <input type="text" id="msg-input" placeholder="Type a message..." disabled>
+            <button id="send-btn" disabled>Send</button>
+        </div>
+    </div>
+
+    <!-- Load PeerJS Library from a completely free CDN -->
+    <script src="https://unpkg.com"></script>
+    <script>
+        let peer = null;
+        let conn = null;
+
+        // 1. Initialize PeerJS connection using their free cloud handshake room
+        // This generates a completely unique random ID for this browser tab
+        peer = new Peer();
+
+        // Display your ID once the cloud assigns you one
+        peer.on('open', (id) => {
+            document.getElementById('my-id').innerText = id;
+            logSystemMessage("Ready! Send your ID to a friend to start chatting.");
+        });
+
+        // 2. LISTEN FOR INCOMING CONNECTIONS (If a friend connects to you)
+        peer.on('connection', (incomingConn) => {
+            // If we are already chatting with someone, close the old connection
+            if (conn) conn.close();
+            
+            conn = incomingConn;
+            setupConnectionHandlers();
+        });
+
+        // 3. OUTGOING CONNECTION (If you initiate the connection to a friend)
+        document.getElementById('connect-btn').onclick = () => {
+            const targetId = document.getElementById('peer-id-input').value.trim();
+            if (!targetId) return;
+
+            document.getElementById('status').innerText = "Connecting...";
+            
+            // Connect directly to the friend's ID
+            conn = peer.connect(targetId);
+            setupConnectionHandlers();
+        };
+
+        // 4. Handle data sending and receiving once connected
+        function setupConnectionHandlers() {
+            conn.on('open', () => {
+                document.getElementById('status').innerText = "Connected!";
+                document.getElementById('chat-header').innerText = `Direct Link: ${conn.peer}`;
+                document.getElementById('msg-input').disabled = false;
+                document.getElementById('send-btn').disabled = false;
+                logSystemMessage(`Successfully established P2P tunnel with peer.`);
+            });
+
+            // This triggers instantly whenever the other device sends text data
+            conn.on('data', (data) => {
+                renderMessage(data, 'received');
+            });
+
+            conn.on('close', () => {
+                document.getElementById('status').innerText = "Disconnected.";
+                document.getElementById('chat-header').innerText = "Not Connected";
+                document.getElementById('msg-input').disabled = true;
+                document.getElementById('send-btn').disabled = true;
+                logSystemMessage("Connection closed by peer.");
+                conn = null;
+            });
+        }
+
+        // 5. Send a Chat Message over the live stream
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if (!text || !conn) return;
+
+            // Send the text across the WebRTC data channel directly to the peer
+            conn.send(text);
+            
+            // Put it on our own screen
+            renderMessage(text, 'sent');
+            input.value = '';
+        }
+
+        function renderMessage(text, type) {
+            const messagesUI = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerText = text;
+            messagesUI.appendChild(div);
+            messagesUI.scrollTop = messagesUI.scrollHeight;
+        }
+
+        function logSystemMessage(text) {
+            renderMessage(text, 'system');
+        }
+
+        document.getElementById('send-btn').onclick = sendMessage;
+        document.getElementById('msg-input').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+    </script>
+</body>
+</html>
