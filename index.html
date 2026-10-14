@@ -3,102 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Sheets Logger</title>
+    <title>Global Live Chat</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 50px;
-            background-color: #f4f4f9;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: #18181b;
+            color: #efeff1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
-        .container {
-            max-width: 400px;
-            background: white;
-            padding: 30px;
+        .chat-container {
+            width: 400px;
+            height: 90vh;
+            background: #0e0e10;
             border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
-        h2 {
-            margin-top: 0;
-        }
-        .input-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
+        .chat-header {
+            padding: 15px;
+            background: #1f1f23;
             font-weight: bold;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            border-bottom: 1px solid #2f2f35;
+            text-align: center;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .message-row {
+            font-size: 14px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .chat-input-area {
+            padding: 15px;
+            background: #1f1f23;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .input-row {
+            display: flex;
+            gap: 8px;
         }
         input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
+            background: #2a2a30;
+            border: 2px solid transparent;
             border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
+            color: white;
             padding: 10px;
-            background-color: #28a745;
+            font-size: 14px;
+        }
+        input:focus {
+            border-color: #a970ff;
+            outline: none;
+        }
+        #usernameInput { width: 30%; }
+        #messageInput { flex-grow: 1; }
+        button {
+            background: #9146ff;
             color: white;
             border: none;
             border-radius: 4px;
-            font-size: 16px;
+            padding: 10px 15px;
+            font-weight: bold;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #218838;
-        }
-        #statusMessage {
-            margin-top: 15px;
-            font-weight: bold;
-            text-align: center;
-        }
+        button:hover { background: #772ce8; }
+        button:disabled { background: #444; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Perform Action</h2>
+<div class="chat-container">
+    <div class="chat-header">STREAM CHAT (GITHUB PORTAL)</div>
+    <div class="chat-messages" id="chatBox"></div>
     
-    <div class="input-group">
-        <label for="usernameInput">Username</label>
-        <input type="text" id="usernameInput" placeholder="Enter your name" value="Player123">
+    <div class="chat-input-area">
+        <div class="input-row">
+            <input type="text" id="usernameInput" placeholder="User" value="User">
+            <input type="text" id="messageInput" placeholder="Send a message" autocomplete="off">
+            <button id="sendBtn">Chat</button>
+        </div>
     </div>
-
-    <div class="input-group">
-        <label for="actionInput">Action Text</label>
-        <input type="text" id="actionInput" placeholder="e.g., Pressed Button, Saved Game" value="Completed Level 5">
-    </div>
-
-    <button id="actionButton">Submit Action to Sheet</button>
-    
-    <div id="statusMessage"></div>
 </div>
 
 <script>
-    // Your live Google Web App Deployment URL
-    const GOOGLE_APP_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnRVCJy5hQeIPt8tBJLr6uFdrOlOgDfVtntaCcwh894r-fJs45IecyDfyUS1qcw7k7XaCYHeEHYUf_RyWV-_sbc7UknDjMryJJK6GlZascfj-3TfhHDWr_rygF10-brntI0M8_z0-O-QkbXofGTLoNrvsg5WT5MpbUgYcrJJTBm80_RomfkHrd8xEKztl-OImuQkgudznjwpiohCj7UcxZyyk1KWGlqvWyRkf7LSvcxwD6gMvOv-KdsuqyNH5dWtiJcd669wS-2QtIkD0rvs_Da414xbMQ&lib=MIW59vspw8_003RDs4KJ3OSFkX0B7jQjK";
-
-    // Grab UI Elements
-    const actionButton = document.getElementById("actionButton");
+    const chatBox = document.getElementById("chatBox");
     const usernameInput = document.getElementById("usernameInput");
-    const actionInput = document.getElementById("actionInput");
-    const statusMessage = document.getElementById("statusMessage");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
 
-    // The function that automatically edits your spreadsheet
-    function logActionToSheet(username, actionText) {
-        statusMessage.style.color = "orange";
-        statusMessage.innerText = "Sending data...";
-        actionButton.disabled = true;
+    // PASTE YOUR GOOGLE SCRIPT URL HERE (Keep the quotes around it!)
+    const GOOGLE_APP_URL = "https://script.google.com/macros/s/AKfycbyAhTe6DJ8IuOxfMwoFWghJa-B1d0iLsCTdKWrPLLCYmbmoZKXM9A2LVujOPv-WUZt4/exec";
+
+    // Function to read chat data from the Google Script database
+    function fetchChatMessages() {
+        fetch(GOOGLE_APP_URL)
+            .then(response => response.json())
+            .then(textStrings => {
+                chatBox.innerHTML = "";
+                textStrings.forEach(text => {
+                    const row = document.createElement("div");
+                    row.className = "message-row";
+                    row.innerHTML = `<span>${escapeHTML(text)}</span>`;
+                    chatBox.appendChild(row);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            })
+            .catch(error => console.error("Error reading chat:", error));
+    }
+
+    // Function to write chat data down into your Google Sheet
+    function sendMessage() {
+        const username = usernameInput.value.trim();
+        const text = messageInput.value.trim();
+
+        if (!username || !text) return;
+
+        sendBtn.disabled = true;
+        messageInput.value = ""; 
 
         const formData = new URLSearchParams();
-        
-        // These keys must match your Google Sheet Row 1 headers exactly!
         formData.append("Username", username);
-        formData.append("Action", actionText);
+        formData.append("Action", text);
 
-        // Send data silently in the background
         fetch(GOOGLE_APP_URL, {
             method: "POST",
             body: formData,
@@ -106,35 +148,26 @@
                 "Content-Type": "application/x-www-form-urlencoded"
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            console.log("Spreadsheet successfully updated!", data);
-            statusMessage.style.color = "green";
-            statusMessage.innerText = "Success! Sheet updated.";
-            actionButton.disabled = false;
+        .then(() => {
+            sendBtn.disabled = false;
+            fetchChatMessages(); // Instantly update view
         })
         .catch(error => {
-            console.error("Error sending data to spreadsheet:", error);
-            statusMessage.style.color = "red";
-            statusMessage.innerText = "Failed to update sheet.";
-            actionButton.disabled = false;
+            console.error("Error sending message:", error);
+            sendBtn.disabled = false;
         });
     }
 
-    // Event Listener for the button click
-    actionButton.addEventListener("click", () => {
-        const username = usernameInput.value.trim();
-        const actionText = actionInput.value.trim();
+    sendBtn.addEventListener("click", sendMessage);
+    messageInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
 
-        if (username === "" || actionText === "") {
-            statusMessage.style.color = "red";
-            statusMessage.innerText = "Please fill out both fields.";
-            return;
-        }
+    function escapeHTML(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
 
-        // Trigger the automatic edit
-        logActionToSheet(username, actionText);
-    });
+    // Background loop checks for fresh messages from your database sheet every 3 seconds
+    fetchChatMessages();
+    setInterval(fetchChatMessages, 3000);
 </script>
 
 </body>
